@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SnapLink.api", "SnapLink.api\SnapLink.api.csproj", "{C9AA89D8-B709-4C18-A34C-922ED2B99558}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SnapLink.tests", "SnapLink.tests\SnapLink.tests.csproj", "{6715753B-8C5B-416D-B903-CB9060245CEC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C9AA89D8-B709-4C18-A34C-922ED2B99558}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9AA89D8-B709-4C18-A34C-922ED2B99558}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9AA89D8-B709-4C18-A34C-922ED2B99558}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9AA89D8-B709-4C18-A34C-922ED2B99558}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6715753B-8C5B-416D-B903-CB9060245CEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6715753B-8C5B-416D-B903-CB9060245CEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6715753B-8C5B-416D-B903-CB9060245CEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6715753B-8C5B-416D-B903-CB9060245CEC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {903FCC2D-599F-4C84-9389-867AE3127EFB}
+	EndGlobalSection
+EndGlobal

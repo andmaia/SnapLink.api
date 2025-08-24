@@ -1,0 +1,6 @@
+@SnapLink.api_HostAddress = http://localhost:5257
+
+GET {{SnapLink.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
