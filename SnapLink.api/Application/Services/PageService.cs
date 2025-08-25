@@ -27,7 +27,7 @@ namespace SnapLink.api.Application.Services
                 Name = request.Name,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
-                Id = Guid.NewGuid()
+                Id = Guid.NewGuid().ToString()
             };
 
             if(request.IsPrivate)
@@ -78,5 +78,20 @@ namespace SnapLink.api.Application.Services
         {
             throw new NotImplementedException();
         }
+
+        public async Task<Result<bool>> ValideAcessCode(ValideAcessCodeRequest request)
+        {
+           
+            var page = await _pageRepository.GetByNameAsync(request.Name);
+            if (page == null)
+                return Result<bool>.Fail("Page not found.");
+
+            var isValid = page.VerifyPassword(request.AccessCode);
+            if (!isValid)
+                return Result<bool>.Fail("Invalid access code.");
+
+            return Result<bool>.Ok(true);
+        }
+
     }
 }

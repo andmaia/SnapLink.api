@@ -1,13 +1,14 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
 
 namespace SnapLink.Api.Domain
 {
     public class Page
     {
-        public Guid Id { get; set; }
+        public string Id { get; set; }
 
-        public string Name { get; set; } 
+        public string Name { get; set; }
 
         public DateTime CreatedAt { get; set; }
 
@@ -31,10 +32,16 @@ namespace SnapLink.Api.Domain
             if (string.IsNullOrEmpty(AccessCode))
                 return;
 
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(AccessCode);
-            var hash = sha256.ComputeHash(bytes);
-            AccessCode = Convert.ToBase64String(hash);
+            var hasher = new PasswordHasher<Page>();
+            AccessCode = hasher.HashPassword(this, AccessCode);
         }
+
+        public bool VerifyPassword(string inputPassword)
+        {
+            var hasher = new PasswordHasher<Page>();
+            var result = hasher.VerifyHashedPassword(this, AccessCode, inputPassword);
+            return result == PasswordVerificationResult.Success;
+        }
+
     }
 }

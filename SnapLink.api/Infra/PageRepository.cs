@@ -21,7 +21,7 @@ namespace SnapLink.api.Infra
         public async Task<bool> ExistsByNameAsync(string name)
         {
             return await _context.Pages
-                .AnyAsync(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                .AnyAsync(p => p.Name==name);
         }
 
         public async Task<IEnumerable<Page>> GetAllAsync()
@@ -31,7 +31,7 @@ namespace SnapLink.api.Infra
                 .ToListAsync(); 
         }
 
-        public async Task<Page?> GetByIdAsync(Guid id)
+        public async Task<Page?> GetByIdAsync(string id)
         {
            return await _context.Pages
                 .AsNoTracking()
@@ -42,7 +42,7 @@ namespace SnapLink.api.Infra
         {
             return await _context.Pages
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefaultAsync(p => p.Name==name);
         }
 
         public void Update(Page entity)
