@@ -59,11 +59,11 @@ namespace SnapLink.api.Controllers
         public async Task<IActionResult> AccessPage([FromBody] ValideAcessCodeRequest request)
         {
             var page = await _service.GetPageByName(request.Name);
-            if (page == null)
-                return NotFound("Page not found.");
+            if (page.Data == null)
+                return NotFound(page.Message);
 
             if (!page.Data.IsPrivate)
-                return BadRequest("Page is not private.");
+                return BadRequest(page.Message);
 
             var isValid =await _service.ValideAcessCode(request);
             if (!isValid.Success)
@@ -74,14 +74,14 @@ namespace SnapLink.api.Controllers
         }
 
         [HttpGet("private/{name}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize]
         public async Task<IActionResult> GetPage(string name)
         {
             var page = await _service.GetPageByName(name);
-            if (page == null)
-                return NotFound("Page not found.");
+            if (page.Data == null)
+                return NotFound(page.Message);
             if (!page.Data.IsPrivate)
-                return BadRequest("Page is not private.");
+                return BadRequest(page.Message);
 
             var userClaims = HttpContext.User.Claims;
             var pageIdClaim = userClaims.FirstOrDefault(c => c.Type == "pageId")?.Value;

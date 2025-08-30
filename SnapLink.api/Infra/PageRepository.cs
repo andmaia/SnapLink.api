@@ -21,28 +21,28 @@ namespace SnapLink.api.Infra
         public async Task<bool> ExistsByNameAsync(string name)
         {
             return await _context.Pages
-                .AnyAsync(p => p.Name==name);
+                .AnyAsync(p => p.Name == name);
         }
 
         public async Task<IEnumerable<Page>> GetAllAsync()
         {
             return await _context.Pages
                 .AsNoTracking()
-                .ToListAsync(); 
+                .ToListAsync();
         }
 
         public async Task<Page?> GetByIdAsync(string id)
         {
-           return await _context.Pages
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == id);
+            return await _context.Pages
+                 .AsNoTracking()
+                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task<Page?> GetByNameAsync(string name)
         {
             return await _context.Pages
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Name==name);
+                .FirstOrDefaultAsync(p => p.Name == name);
         }
 
         public void Update(Page entity)
