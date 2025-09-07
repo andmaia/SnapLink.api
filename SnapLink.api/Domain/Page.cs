@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using SnapLink.api.Domain;
 
 namespace SnapLink.Api.Domain
 {
@@ -20,6 +21,15 @@ namespace SnapLink.Api.Domain
         public bool IsPrivate { get; set; }
 
         public string? AccessCode { get; set; }
+        private List<PageFile> _pageFiles;
+        public IReadOnlyCollection<PageFile> PageFiles => _pageFiles.AsReadOnly();
+
+        public void AddPageFile(PageFile pageFile)
+        {
+            if(_pageFiles == null)
+                _pageFiles = new List<PageFile>();
+            _pageFiles.Add(pageFile);
+        }
 
         public void Deactivate()
         {

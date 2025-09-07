@@ -6,7 +6,7 @@ namespace SnapLink.api.Domain
     public class PageFile
     {
         public string Id { get; set; }
-        public string FileName { get; set; }
+        public string? FileName { get; set; }
         public Byte[] Data { get; private set; }
         public int Size { get;private set; }
         public string ContentType { get; set; }
@@ -16,7 +16,8 @@ namespace SnapLink.api.Domain
         public TimeToExpire TimeToExpire { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public bool IsActive { get; set; }
-        public DateTime FinishedAT { get; set; }
+        public DateTime? FinishedAT { get; set; }
+        public PageFile() { }
 
         public PageFile(string filename, string contentType, string pageId, TimeToExpire timeToExpire)
         {

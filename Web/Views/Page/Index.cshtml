@@ -1,0 +1,205 @@
+﻿@using Microsoft.AspNetCore.Http
+    @model List<PageFileResponse>
+
+@{
+    ViewData["Title"] = "Arquivos - SnapLink";
+}
+
+
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="errorModalLabel">Erro ao Criar Página</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>@TempData["PageFileMessage"]</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Meus Arquivos</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFileModal">
+            Adicionar Arquivo
+        </button>
+    </div>
+
+
+    <div class="row g-4">
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var file in Model)
+            {
+                <div class="col-md-4">
+                    <div class="card-custom text-center p-4 shadow-sm rounded bg-white">
+                        <div class="feature-icon text-primary" style="font-size: 32px;">📄</div>
+                        <h5 class="fw-bold mt-2">@file.FileName</h5>
+
+                        <!-- Exibir tamanho com conversão dinâmica -->
+                        @{
+                            var sizeInKB = file.Size / 1024.0;
+                            var sizeInMB = sizeInKB / 1024.0;
+                        }
+                        <p class="text-muted">
+                            Tamanho:
+                            @(sizeInMB >= 1
+                                ? $"{sizeInMB:F2} MB"
+                                : $"{sizeInKB:F2} KB")
+                        </p>
+
+                        <div class="d-flex justify-content-center gap-3 mt-3">
+                            <a class="btn btn-sm btn-download"
+                               asp-controller="PageFile"
+                               asp-action="DownloadFile"
+                               asp-route-id="@file.Id"
+                               asp-route-pageName="@ViewBag.Page?.Name">
+                                 Baixar
+                            </a>
+
+                            <form method="post" asp-action="DeleteFile" asp-controller="PageFile" style="display:inline;">
+                                <input type="hidden" name="id" value="@file.Id" />
+                                <input type="hidden" name="pageName" value="@ViewBag.Page?.Name" />
+                                <button type="submit" class="btn btn-sm btn-delete">
+                                    Excluir
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            }
+        }
+        else
+        {
+            <p>Nenhum arquivo encontrado.</p>
+        }
+    </div>
+
+</div>
+
+<!-- MODAL ADICIONAR ARQUIVO -->
+<div class="modal fade" id="addFileModal" tabindex="-1" aria-labelledby="addFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" asp-action="CreateFile" asp-controller="PageFile">
+                <input type="hidden" id="PageId" name="PageId" value="@ViewBag.Page?.Id" />
+                <input type="hidden" id="PageName" name="PageName" value="@ViewBag.Page?.Name" />
+                <input type="hidden" id="IsPagePrivate" name="IsPagePrivate" value="@ViewBag.Page?.IsPrivate" />
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addFileModalLabel">Adicionar Arquivo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="FileName" class="form-label">Título</label>
+                        <input type="text" class="form-control" id="FileName" name="FileName" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="Data" class="form-label">Arquivo</label>
+                        <input class="form-control" type="file" id="Data" name="Data" required>
+                        <small class="text-muted">Arraste ou selecione o arquivo.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="TimeToExpire" class="form-label">Tempo de Expiração (minutos)</label>
+                        <select class="form-select" id="TimeToExpire" name="TimeToExpire" required>
+                            <option value="1">1</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA ACCESS CODE -->
+@if (ViewBag.RequireAccessCode == true)
+{
+    <div class="modal fade" id="accessCodeModal" tabindex="-1" aria-labelledby="accessCodeLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-controller="Page" asp-action="AccessPrivate">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="accessCodeLabel">Acessar Página Privada</h5>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="name" value="@ViewBag.PageName" />
+                        <div class="mb-3">
+                            <label for="AccessCode" class="form-label">Código de Acesso</label>
+                            <input type="password" class="form-control" name="accessCode" id="AccessCode" placeholder="Digite o código de acesso" required />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Acessar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var accessModal = new bootstrap.Modal(document.getElementById('accessCodeModal'));
+            accessModal.show();
+        });
+    </script>
+}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+@if (TempData["PageFileMessage"] != null)
+{
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+            errorModal.show();
+        });
+    </script>
+} 
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const fileInput = document.getElementById("Data");
+        const maxSize = 10 * 1024 * 1024; // 10MB
+
+        fileInput.addEventListener("change", function () {
+            const file = this.files[0];
+            if (file && file.size > maxSize) {
+                // Atualiza a mensagem do modal dinamicamente
+                document.querySelector("#errorModal .modal-body p").innerText =
+                    "O arquivo selecionado é muito grande. O tamanho máximo permitido é 10MB.";
+
+                // Limpa o campo de arquivo
+                this.value = "";
+
+                // Exibe o modal de erro
+                var errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                errorModal.show();
+            }
+        });
+    });
+</script>
+
+
+

@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SnapLink.Api.Domain;
-using SnapLink.api.Infra.SnapLink.Api.Infra;
+using SnapLink.api.Infra;
 using System;
 using System.Linq;
 using System.Net.Http;

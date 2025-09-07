@@ -15,12 +15,14 @@ namespace SnapLink.api.Controllers
         private readonly IPageService _service;
         private readonly IValidator<CreatePageRequest> _validator;
         private readonly ITokenService _tokenService;
+        private readonly IConfiguration _config;
 
-        public PageController(IPageService service, IValidator<CreatePageRequest> validator, ITokenService tokenService)
+        public PageController(IPageService service, IValidator<CreatePageRequest> validator, ITokenService tokenService, IConfiguration config)
         {
             _service = service;
             _validator = validator;
             _tokenService = tokenService;
+            _config = config;
         }
 
         [HttpPost]
@@ -54,7 +56,6 @@ namespace SnapLink.api.Controllers
 
             return Ok(result);
         }
-
         [HttpPost("access")]
         public async Task<IActionResult> AccessPage([FromBody] ValideAcessCodeRequest request)
         {
@@ -65,28 +66,35 @@ namespace SnapLink.api.Controllers
             if (!page.Data.IsPrivate)
                 return BadRequest(page.Message);
 
-            var isValid =await _service.ValideAcessCode(request);
+            var isValid = await _service.ValideAcessCode(request);
             if (!isValid.Success)
                 return Unauthorized("Invalid access code.");
 
             var token = _tokenService.GeneratePageToken(page.Data.Id);
+
+            Response.Cookies.Append(
+                $"PageToken_{page.Data.Name}",
+                token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddHours(1)
+                }
+            );
+
             return Ok(new { token });
         }
 
+
         [HttpGet("private/{name}")]
-        [Authorize]
         public async Task<IActionResult> GetPage(string name)
         {
             var page = await _service.GetPageByName(name);
             if (page.Data == null)
                 return NotFound(page.Message);
-            if (!page.Data.IsPrivate)
-                return BadRequest(page.Message);
-
-            var userClaims = HttpContext.User.Claims;
-            var pageIdClaim = userClaims.FirstOrDefault(c => c.Type == "pageId")?.Value;
-
-            if (page.Data.IsPrivate && pageIdClaim != page.Data.Id)
+            if (page.Data.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, page.Data.Id, _config["Jwt:Key"]))
                 return Unauthorized("Token does not grant access to this page.");
 
             return Ok(page);

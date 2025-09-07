@@ -1,7 +1,6 @@
 using SnapLink.api.Application.Services;
 using SnapLink.api.Infra;
 using Microsoft.EntityFrameworkCore;
-using SnapLink.api.Infra.SnapLink.Api.Infra;
 using System.Reflection;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -15,13 +14,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
-
-// Fix: Replace AddDbContext with AddScoped for non-DbContext services
+builder.Services.AddScoped<IPageFileService, PageFileService>();
+builder.Services.AddScoped<IPageFileRepository, PageFileRepository>();
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOFWork>();
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+builder.Services.AddHostedService<PageFileExpirationService>();
+
 
 var key = builder.Configuration["Jwt:Key"];
 
@@ -32,6 +34,20 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var token = context.HttpContext.Request.Cookies["PageToken"];
+            if (!string.IsNullOrEmpty(token))
+            {
+                context.Token = token;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
+
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -43,6 +59,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
+
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -89,6 +106,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRouting();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 

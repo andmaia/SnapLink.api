@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SnapLink.api.Infra.SnapLink.Api.Infra;
 using SnapLink.Api.Domain;
 
 namespace SnapLink.api.Infra
