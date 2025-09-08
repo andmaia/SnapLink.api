@@ -21,4 +21,7 @@ RUN dotnet publish -c Release -o out \
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=bu
+COPY --from=build /app/Web/out .
+
+EXPOSE 5001
+ENTRYPOINT ["dotnet", "Web.dll"]
