@@ -2,12 +2,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar csproj e restaurar
+# Copiar os projetos referenciados e o Web.csproj
+COPY ../SnapLink.api ./SnapLink.api
 COPY *.csproj ./
+
+# Restaurar dependências
 RUN dotnet restore
 
-# Copiar todo o projeto e publicar
+# Copiar o restante do projeto Web
 COPY . .
+
+# Publicar Web
 RUN dotnet publish -c Release -o out
 
 # Runtime
