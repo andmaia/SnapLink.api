@@ -120,20 +120,20 @@ namespace Web.Controllers
 
             var client = GetHttpClientWithToken();
             var response = await client.GetAsync($"/pagefile/download/{id}");
-            var content = await response.Content.ReadAsStringAsync();
-            var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
 
             if (!response.IsSuccessStatusCode)
             {
-                TempData["PageFileMessage"] = resultMessage?.message ?? "Erro desconhecido ao baixar arquivo.";
+                TempData["PageFileMessage"] = "Erro desconhecido ao baixar arquivo.";
                 return Redirect($"/page/{pageName}");
             }
 
+            // Ler conteúdo como bytes
             var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            // Obter content-type
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+
+            // Obter nome do arquivo, se enviado pelo header
             var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"file-{id}";
 
             return File(bytes, contentType, fileName);
