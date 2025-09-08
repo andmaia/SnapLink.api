@@ -8,7 +8,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddHttpClient("SnapLinkApi", client =>
 {
-    var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
+    var baseUrl = Environment.GetEnvironmentVariable("API_BASE_URL");
     if (string.IsNullOrEmpty(baseUrl))
         throw new InvalidOperationException("A variável de ambiente 'ApiSettings__BaseUrl' não foi configurada.");
 
