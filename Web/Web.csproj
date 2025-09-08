@@ -13,5 +13,11 @@
   <ItemGroup>
     <ProjectReference Include="..\SnapLink.api\SnapLink.api.csproj" />
   </ItemGroup>
+	<ItemGroup>
+		<Content Remove="..\SnapLink.api\appsettings*.json" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="..\SnapLink.api\appsettings*.json" CopyToPublishDirectory="Never" />
+	</ItemGroup>
 
 </Project>
