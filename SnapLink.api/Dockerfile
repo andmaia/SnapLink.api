@@ -2,19 +2,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar solução e projeto da API
-COPY *.sln .
-COPY SnapLink.api/*.csproj ./SnapLink.api/
+# Copiar csproj e restaurar
+COPY *.csproj ./
 RUN dotnet restore
 
-# Copiar tudo e publicar
-COPY . .
-WORKDIR /app/SnapLink.api
+# Copiar todo o projeto e publicar
+COPY . . 
 RUN dotnet publish -c Release -o out
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/SnapLink.api/out . 
+COPY --from=build /app/out .
 EXPOSE 5000
 ENTRYPOINT ["dotnet", "SnapLink.api.dll"]
