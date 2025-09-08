@@ -2,17 +2,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar os arquivos de projeto necessários
-COPY SnapLink.api/SnapLink.api.csproj ./SnapLink.api/
+# Copiar apenas o csproj do Web
 COPY Web/Web.csproj ./Web/
 
-# Restaurar dependências
+# Restaurar dependências do Web
 RUN dotnet restore ./Web/Web.csproj
 
-# Copiar todo o código da solution
-COPY . .
+# Copiar apenas o projeto Web
+COPY Web ./Web
 
-# Publicar a aplicação Web
+# Publicar apenas o Web
 WORKDIR /app/Web
 RUN dotnet publish -c Release -o out
 
@@ -20,7 +19,7 @@ RUN dotnet publish -c Release -o out
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-# Copiar os arquivos publicados
+# Copiar os arquivos publicados do Web
 COPY --from=build /app/Web/out .
 
 # Definir variável de ambiente para a URL da API
