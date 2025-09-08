@@ -13,14 +13,12 @@ RUN dotnet restore Web/Web.csproj
 COPY Web Web/
 COPY SnapLink.api SnapLink.api/
 
-# Publicar Web
+# Publicar Web e remover appsettings da API
 WORKDIR /app/Web
-RUN dotnet publish -c Release -o out
+RUN dotnet publish -c Release -o out \
+    && rm -f out/appsettings*.json
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/Web/out .
-
-EXPOSE 5001
-ENTRYPOINT ["dotnet", "Web.dll"]
+COPY --from=bu
