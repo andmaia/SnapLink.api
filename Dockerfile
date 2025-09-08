@@ -2,25 +2,25 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar csproj do Web e do SnapLink.api para restaurar pacotes
-COPY Web/Web.csproj ./Web/
-COPY SnapLink.api/SnapLink.api.csproj ./SnapLink.api/
-RUN dotnet restore ./Web/Web.csproj
+# Copiar csproj para restaurar
+COPY Web/Web.csproj Web/
+COPY SnapLink.api/SnapLink.api.csproj SnapLink.api/
 
-# Copiar código-fonte dos dois projetos
-COPY Web ./Web
-COPY SnapLink.api ./SnapLink.api
+# Restaurar Web (irá restaurar também API como dependência)
+RUN dotnet restore Web/Web.csproj
 
-# Publicar somente o Web, ignorando appsettings da API
+# Copiar código-fonte
+COPY Web Web/
+COPY SnapLink.api SnapLink.api/
+
+# Publicar Web
 WORKDIR /app/Web
-RUN dotnet publish -c Release -o out /p:ExcludeFilesFromPublish="..\SnapLink.api\appsettings*.json"
+RUN dotnet publish -c Release -o out
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/Web/out .
-
-# Definir URL da API como variável de ambiente
 
 EXPOSE 5001
 ENTRYPOINT ["dotnet", "Web.dll"]
