@@ -16,15 +16,8 @@ namespace SnapLink.api.Infra
             modelBuilder.Entity<Page>(entity =>
             {
                 entity.HasKey(p => p.Id);
-
-                // Mapear string como nvarchar(450) para SQL Server
-                entity.Property(p => p.Id)
-                      .HasMaxLength(450)
-                      .IsRequired();
-
-                entity.Property(p => p.Name)
-                      .IsRequired()
-                      .HasMaxLength(100);
+                entity.Property(p => p.Id).IsRequired();
+                entity.Property(p => p.Name).IsRequired().HasMaxLength(100);
 
                 entity.HasMany(p => p.PageFiles)
                       .WithOne(f => f.Page)
@@ -35,29 +28,16 @@ namespace SnapLink.api.Infra
             modelBuilder.Entity<PageFile>(entity =>
             {
                 entity.HasKey(f => f.Id);
-
-                entity.Property(f => f.Id)
-                      .HasMaxLength(450)
-                      .IsRequired();
-
-                entity.Property(f => f.FileName)
-                      .HasMaxLength(255)
-                      .IsRequired(false);
-
-                entity.Property(f => f.ContentType)
-                      .IsRequired(false);
-
-                entity.Property(f => f.Data)
-                      .HasColumnType("varbinary(max)")
-                      .IsRequired(false);
-
-                entity.Property(f => f.ExpiresAt)
-                      .IsRequired(true);
-
-                entity.Property(f => f.FinishedAT)
-                      .IsRequired(false);
+                entity.Property(f => f.Id).IsRequired();
+                entity.Property(f => f.FileName).HasMaxLength(255).IsRequired(false);
+                entity.Property(f => f.ContentType).IsRequired(false);
+                entity.Property(f => f.Data).IsRequired(false); // bytea automaticamente
+                entity.Property(f => f.ExpiresAt).IsRequired();
+                entity.Property(f => f.FinishedAT).IsRequired(false);
             });
-
         }
+
+
+
     }
 }
