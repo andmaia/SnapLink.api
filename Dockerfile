@@ -2,16 +2,18 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar apenas o csproj do Web
+# Copiar apenas os arquivos .csproj dos dois projetos
 COPY Web/Web.csproj ./Web/
+COPY SnapLink.api/SnapLink.api.csproj ./SnapLink.api/
 
-# Restaurar dependências do Web
+# Restaurar dependências do projeto Web
 RUN dotnet restore ./Web/Web.csproj
 
-# Copiar apenas o projeto Web
+# Copiar os códigos-fonte dos dois projetos
 COPY Web ./Web
+COPY SnapLink.api ./SnapLink.api
 
-# Publicar apenas o Web
+# Publicar somente o Web (o .NET compila a API como dependência)
 WORKDIR /app/Web
 RUN dotnet publish -c Release -o out
 
