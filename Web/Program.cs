@@ -9,6 +9,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("SnapLinkApi", client =>
 {
     var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
+    if (string.IsNullOrEmpty(baseUrl))
+        throw new InvalidOperationException("A variável de ambiente 'ApiSettings__BaseUrl' não foi configurada.");
+
     client.BaseAddress = new Uri(baseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
@@ -25,7 +28,6 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
 
 app.MapControllerRoute(
     name: "default",
