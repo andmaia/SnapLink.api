@@ -2,19 +2,29 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copiar solução e projeto da API
-COPY *.sln .
-COPY SnapLink.api/*.csproj ./SnapLink.api/
-RUN dotnet restore
+# Copiar os arquivos de projeto necessários
+COPY SnapLink.api/SnapLink.api.csproj ./SnapLink.api/
+COPY Web/Web.csproj ./Web/
 
-# Copiar tudo e publicar
+# Restaurar dependências
+RUN dotnet restore ./Web/Web.csproj
+
+# Copiar todo o código da solution
 COPY . .
-WORKDIR /app/SnapLink.api
+
+# Publicar a aplicação Web
+WORKDIR /app/Web
 RUN dotnet publish -c Release -o out
 
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/SnapLink.api/out . 
-EXPOSE 5000
-ENTRYPOINT ["dotnet", "SnapLink.api.dll"]
+
+# Copiar os arquivos publicados
+COPY --from=build /app/Web/out .
+
+# Definir variável de ambiente para a URL da API
+ENV ApiSettings__BaseUrl=http://localhost:5000
+
+EXPOSE 5001
+ENTRYPOINT ["dotnet", "Web.dll"]
