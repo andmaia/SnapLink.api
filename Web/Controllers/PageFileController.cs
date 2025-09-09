@@ -127,13 +127,10 @@ namespace Web.Controllers
                 return Redirect($"/page/{pageName}");
             }
 
-            // Ler conteúdo como bytes
             var bytes = await response.Content.ReadAsByteArrayAsync();
 
-            // Obter content-type
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
 
-            // Obter nome do arquivo, se enviado pelo header
             var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"file-{id}";
 
             return File(bytes, contentType, fileName);

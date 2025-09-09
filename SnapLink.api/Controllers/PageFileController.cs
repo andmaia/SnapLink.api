@@ -65,4 +65,28 @@ public class PageFileController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    { 
+        var result = await _service.DeletePageFile(id); 
+        if (!result.Success) return BadRequest(result); 
+        return Ok(result); 
+    }
+
+    [HttpGet("download/{id}")]
+    public async Task<IActionResult> Download(string id) 
+    { 
+        var fileMetaResult = await _service.GetById(id); 
+        if (!fileMetaResult.Success)
+            return NotFound(fileMetaResult); 
+        var fileMeta = fileMetaResult.Data; 
+        var dataResult = await _service.DowloadPageFile(id); 
+        if (!dataResult.Success)
+            return NotFound(dataResult); 
+        var data = dataResult.Data;
+        
+        return File(data, fileMeta.ContentType ?? "application/octet-stream", fileMeta.FileName ?? "file");
+    }
+
 }
