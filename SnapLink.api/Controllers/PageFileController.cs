@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SnapLink.api.Application.Services;
-using SnapLink.api.Controllers;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting;
 using SnapLink.api.Infra;
@@ -14,7 +13,7 @@ public class PageFileController : ControllerBase
     private readonly IPageFileService _service;
     private readonly IPageRepository _pageRepository;
     private readonly IValidator<CreatePageFileRequest> _validator;
-    private readonly IConfiguration _config;
+    private readonly string _jwtKey;
 
     public PageFileController(
         IPageFileService service,
@@ -25,15 +24,16 @@ public class PageFileController : ControllerBase
         _service = service;
         _pageRepository = pageRepository;
         _validator = validator;
-        _config = config;
+
+        _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+            ?? throw new InvalidOperationException("JWT_KEY não encontrada nas variáveis de ambiente.");
     }
+
     [HttpPost("upload")]
     public async Task<IActionResult> Create([FromForm] CreatePageFileRequest request)
     {
-
-        if (request.IsPagePrivate && !TokenValidator.ValidateTokenToPage(HttpContext, request.PageId, _config["Jwt:Key"]))
+        if (request.IsPagePrivate && !TokenValidator.ValidateTokenToPage(HttpContext, request.PageId, _jwtKey))
             return Unauthorized("Token does not grant access to this page.");
-
 
         var validationResult = await _validator.ValidateAsync(request);
         if (!validationResult.IsValid)
@@ -49,25 +49,14 @@ public class PageFileController : ControllerBase
         return Ok(Result<string>.Ok("File uploaded successfully."));
     }
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
-    {
-        var result = await _service.DeletePageFile(id);
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
     [HttpGet("page/{pageId}")]
-
     public async Task<IActionResult> GetAllByPageId(string pageId)
     {
         var page = await _pageRepository.GetByIdAsync(pageId);
-        if (page==null)
-             return NotFound("Page not found");
-        
-        if (page.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, pageId, _config["Jwt:Key"]))
+        if (page == null)
+            return NotFound("Page not found");
+
+        if (page.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, pageId, _jwtKey))
             return Unauthorized("Token does not grant access to this page.");
 
         var result = await _service.GetAllByPageId(pageId);
@@ -76,23 +65,4 @@ public class PageFileController : ControllerBase
 
         return Ok(result);
     }
-
-    [HttpGet("download/{id}")]
-    public async Task<IActionResult> Download(string id)
-    {
-        var fileMetaResult = await _service.GetById(id);
-        if (!fileMetaResult.Success)
-            return NotFound(fileMetaResult);
-
-        var fileMeta = fileMetaResult.Data;
-
-        var dataResult = await _service.DowloadPageFile(id);
-        if (!dataResult.Success)
-            return NotFound(dataResult);
-
-        var data = dataResult.Data;
-
-        return File(data, fileMeta.ContentType ?? "application/octet-stream", fileMeta.FileName ?? "file");
-    }
-
 }

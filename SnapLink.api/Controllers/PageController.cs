@@ -3,8 +3,6 @@ using SnapLink.api.Application.Services;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting;
 using FluentValidation;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 
 namespace SnapLink.api.Controllers
 {
@@ -15,14 +13,20 @@ namespace SnapLink.api.Controllers
         private readonly IPageService _service;
         private readonly IValidator<CreatePageRequest> _validator;
         private readonly ITokenService _tokenService;
-        private readonly IConfiguration _config;
+        private readonly string _jwtKey;
 
-        public PageController(IPageService service, IValidator<CreatePageRequest> validator, ITokenService tokenService, IConfiguration config)
+        public PageController(
+            IPageService service,
+            IValidator<CreatePageRequest> validator,
+            ITokenService tokenService,
+            IConfiguration config)
         {
             _service = service;
             _validator = validator;
             _tokenService = tokenService;
-            _config = config;
+
+            _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+                ?? throw new InvalidOperationException("JWT_KEY não encontrada nas variáveis de ambiente.");
         }
 
         [HttpPost]
@@ -38,13 +42,10 @@ namespace SnapLink.api.Controllers
 
             var result = await _service.CreatePageWithUniqueName(request);
             if (!result.Success)
-            {
                 return BadRequest(result);
-            }
 
             return Ok(Result<string>.Ok("Página criada com sucesso."));
         }
-
 
         [HttpGet("by-name/{name}")]
         public async Task<IActionResult> GetByName(string name)
@@ -56,6 +57,7 @@ namespace SnapLink.api.Controllers
 
             return Ok(result);
         }
+
         [HttpPost("access")]
         public async Task<IActionResult> AccessPage([FromBody] ValideAcessCodeRequest request)
         {
@@ -80,13 +82,12 @@ namespace SnapLink.api.Controllers
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddHours(1)
+                    Expires = DateTime.UtcNow.AddMinutes(30)
                 }
             );
 
             return Ok(new { token });
         }
-
 
         [HttpGet("private/{name}")]
         public async Task<IActionResult> GetPage(string name)
@@ -94,7 +95,8 @@ namespace SnapLink.api.Controllers
             var page = await _service.GetPageByName(name);
             if (page.Data == null)
                 return NotFound(page.Message);
-            if (page.Data.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, page.Data.Id, _config["Jwt:Key"]))
+
+            if (page.Data.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, page.Data.Id, _jwtKey))
                 return Unauthorized("Token does not grant access to this page.");
 
             return Ok(page);

@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using DotNetEnv;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
+
 var builder = WebApplication.CreateBuilder(args);
+Env.Load();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
