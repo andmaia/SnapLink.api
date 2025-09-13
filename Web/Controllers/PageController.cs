@@ -20,11 +20,12 @@ namespace Web.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
-        [HttpGet("")]
+        [HttpGet("/")]
         public IActionResult RedirectToRoot()
         {
             return Redirect("/");
         }
+
         [HttpGet("/{name}")]
 
         public async Task<IActionResult> Index(string name)
