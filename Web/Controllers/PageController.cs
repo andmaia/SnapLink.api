@@ -25,6 +25,7 @@ namespace Web.Controllers
         {
             return Redirect("/");
         }
+        [HttpGet("/{name}")]
 
         public async Task<IActionResult> Index(string name)
         {
