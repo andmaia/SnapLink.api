@@ -6,14 +6,12 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using DotNetEnv; // << Importante
+using DotNetEnv; 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Carrega variáveis do arquivo .env na raiz do projeto
 Env.Load();
 
-// Lê as variáveis do ambiente
 var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
     ?? throw new Exception("DB_CONNECTION_STRING não definida!");
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
@@ -21,12 +19,11 @@ var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
 var apiBaseUrl = Environment.GetEnvironmentVariable("API_BASE_URL")
     ?? throw new Exception("API_BASE_URL não definida!");
 
-// Configurações do .NET
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton(jwtKey);
 
-// Injeção de dependências
 builder.Services.AddScoped<IPageService, PageService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPageFileService, PageFileService>();
@@ -34,14 +31,12 @@ builder.Services.AddScoped<IPageFileRepository, PageFileRepository>();
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOFWork>();
 
-// Configuração do PostgreSQL com Npgsql
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 builder.Services.AddHostedService<PageFileExpirationService>();
 
-// Configuração JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -74,7 +69,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Configuração Swagger
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo

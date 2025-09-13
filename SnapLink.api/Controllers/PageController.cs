@@ -14,19 +14,16 @@ namespace SnapLink.api.Controllers
         private readonly IValidator<CreatePageRequest> _validator;
         private readonly ITokenService _tokenService;
         private readonly string _jwtKey;
-
         public PageController(
-            IPageService service,
-            IValidator<CreatePageRequest> validator,
-            ITokenService tokenService,
-            IConfiguration config)
+             IPageService service,
+             IValidator<CreatePageRequest> validator,
+             ITokenService tokenService,
+             string jwtKey) 
         {
             _service = service;
             _validator = validator;
             _tokenService = tokenService;
-
-            _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
-                ?? throw new InvalidOperationException("JWT_KEY não encontrada nas variáveis de ambiente.");
+            _jwtKey = jwtKey;
         }
 
         [HttpPost]

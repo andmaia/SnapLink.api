@@ -19,14 +19,12 @@ public class PageFileController : ControllerBase
         IPageFileService service,
         IPageRepository pageRepository,
         IValidator<CreatePageFileRequest> validator,
-        IConfiguration config)
+        string jwtKey)
     {
         _service = service;
         _pageRepository = pageRepository;
         _validator = validator;
-
-        _jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
-            ?? throw new InvalidOperationException("JWT_KEY não encontrada nas variáveis de ambiente.");
+        _jwtKey = jwtKey;
     }
 
     [HttpPost("upload")]

@@ -20,6 +20,11 @@ namespace Web.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
+        public async Task<IActionResult> Index()
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
         [HttpGet("{name}")]
         public async Task<IActionResult> Index(string name)
         {
