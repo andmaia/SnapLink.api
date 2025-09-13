@@ -20,12 +20,12 @@ namespace Web.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<IActionResult> Index()
+        [HttpGet("")]
+        public IActionResult RedirectToRoot()
         {
-            return RedirectToAction("Index", "Home");
+            return Redirect("/");
         }
 
-        [HttpGet("{name}")]
         public async Task<IActionResult> Index(string name)
         {
             ViewBag.PageName = name;
