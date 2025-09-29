@@ -2,7 +2,7 @@
 {
     public class ResultMessageDTO
     {
-        public string message { get; set; }
+        public List<string> Errors { get; set; }
 
     }
 }

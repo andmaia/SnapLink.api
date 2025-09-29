@@ -5,11 +5,13 @@ using SnapLink.api.Crosscutting;
 using FluentValidation;
 using SnapLink.Api.Controllers;
 using SnapLink.Api.Crosscutting.Events;
+using Asp.Versioning;
 
 namespace SnapLink.api.Controllers
 {
-    [Route("api/v{version:apiVersion}/[controller]")]
-    [ApiVersion("1.0")]
+    /*[Route("api/v{version:apiVersion}/[controller]")]*/
+   /* [ApiVersion("1.0")]*/
+   [Route("api/v1/[controller]")]
     public class PageController : MainController
     {
         private readonly IPageService _service;

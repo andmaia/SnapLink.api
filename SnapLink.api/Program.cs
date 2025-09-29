@@ -9,7 +9,7 @@ using System.Text;
 using DotNetEnv;
 using SnapLink.api.Crosscutting.Middlewares;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc.Versioning;
+using Asp.Versioning;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,27 +106,22 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddApiVersioning(options =>
+/*builder.Services.AddApiVersioning(options =>
 {
+    options.DefaultApiVersion = new ApiVersion(1);
     options.ReportApiVersions = true;
-
     options.AssumeDefaultVersionWhenUnspecified = true;
-    options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
-
     options.ApiVersionReader = ApiVersionReader.Combine(
-        new QueryStringApiVersionReader("api-version"),
-        new HeaderApiVersionReader("X-Version"),
-        new UrlSegmentApiVersionReader()
-    );
-});
-
-builder.Services.AddVersionedApiExplorer(options =>
+        new UrlSegmentApiVersionReader(),
+        new HeaderApiVersionReader("X-Api-Version"));
+})
+.AddMvc() // This is needed for controllers
+.AddApiExplorer(options =>
 {
-    options.GroupNameFormat = "'v'VVV"; 
+    options.GroupNameFormat = "'v'V";
     options.SubstituteApiVersionInUrl = true;
 });
-
-
+*/
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -140,5 +135,15 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ErrorHandlerMiddleware>();
-app.MapControllers();
+app.MapControllerRoute(
+    name: "api",
+    pattern: "api/v{version:apiVersion}/{controller}/{action}/{id?}"
+);
+
+// Mapear MVC
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}"
+);
+
 app.Run();

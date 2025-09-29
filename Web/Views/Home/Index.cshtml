@@ -1,6 +1,10 @@
 ﻿@{
     ViewData["Title"] = "SnapLink - Compartilhe arquivos de forma rápida";
     Layout = null;
+    var errorsJson = TempData["Errors"] as string;
+    var errors = !string.IsNullOrEmpty(errorsJson)
+        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(errorsJson)
+        : new List<string>();
 }
 
 <!DOCTYPE html>
@@ -240,7 +244,15 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <p>@TempData["Message"]</p>
+                    @if (errors.Any())
+                    {
+                        <ul>
+                            @foreach (var e in errors)
+                            {
+                                <li>@e</li>
+                            }
+                        </ul>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -250,13 +262,14 @@
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            var message = "@TempData["Message"]";
-            if (message && message.trim() !== "") {
-                var errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
-                errorModal.show();
-            }
-        });
+                   document.addEventListener("DOMContentLoaded", function () {
+                var errors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(errors));
+
+                if (errors.length > 0) {
+                    var errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+                    errorModal.show();
+                }
+            });
     </script>
 
 

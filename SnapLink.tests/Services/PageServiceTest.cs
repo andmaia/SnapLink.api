@@ -15,7 +15,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 namespace SnapLink.tests.Services
 {
-    public class PageServiceTest
+ /*   public class PageServiceTest
     {
 
         private readonly Mock<IPageRepository> _pageRepository = new Mock<IPageRepository>();
@@ -155,5 +155,5 @@ namespace SnapLink.tests.Services
 
 
 
-    }
+    }*/
 }

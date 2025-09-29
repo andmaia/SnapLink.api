@@ -58,7 +58,7 @@ namespace Web.Controllers
             if (request.Data != null)
                 form.Add(new StreamContent(request.Data.OpenReadStream()), "Data", request.Data.FileName);
 
-            var response = await client.PostAsync("/PageFile/upload", form);
+            var response = await client.PostAsync("pageFile/upload", form);
 
             if (response.IsSuccessStatusCode)
             {
@@ -70,8 +70,8 @@ namespace Web.Controllers
             {
                 PropertyNameCaseInsensitive = true
             });
-
-            TempData["PageFileMessage"] = resultMessage?.message ?? "Erro desconhecido ao criar arquivo.";
+          
+            ViewBag.Errors = resultMessage?.Errors ?? new List<string> { "Erro desconhecido ao criar página" };
 
             return Redirect($"/page/{request.PageName}");
         }
@@ -85,7 +85,7 @@ namespace Web.Controllers
             }
 
             var client = GetHttpClientWithToken();
-            var response = await client.GetAsync($"/pagefile/page/{pageId}");
+            var response = await client.GetAsync($"pagefile/page/{pageId}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -119,7 +119,7 @@ namespace Web.Controllers
             }
 
             var client = GetHttpClientWithToken();
-            var response = await client.GetAsync($"/pagefile/download/{id}");
+            var response = await client.GetAsync($"pagefile/download/{id}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -147,7 +147,7 @@ namespace Web.Controllers
             }
 
             var client = GetHttpClientWithToken();
-            var response = await client.DeleteAsync($"/pagefile/{id}");
+            var response = await client.DeleteAsync($"pagefile/{id}");
 
             if (response.IsSuccessStatusCode)
                 return Redirect($"/page/{pageName}");

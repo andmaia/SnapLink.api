@@ -14,6 +14,7 @@ namespace SnapLink.api.Crosscutting.Middlewares
             }
             catch (Exception ex)
             {
+                MessageService.ClearMessages();
                 MessageService.AddMessage(ex.Message);
 
                 var result = new Result<object>(

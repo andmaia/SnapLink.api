@@ -32,7 +32,7 @@ namespace Web.Controllers
         {
             ViewBag.PageName = name;
             ViewBag.RequireAccessCode = false;
-
+            ViewBag.Erros = new List<string>();
             var client = _httpClientFactory.CreateClient("SnapLinkApi");
 
             var token = Request.Cookies[$"PageToken"];
@@ -42,7 +42,7 @@ namespace Web.Controllers
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
 
-            var response = await client.GetAsync($"/page/private/{name}");
+            var response = await client.GetAsync($"page/private/{name}");
             if (!response.IsSuccessStatusCode)
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -51,7 +51,13 @@ namespace Web.Controllers
                     return View(); 
                 }
 
-                TempData["Message"] = $"Página '{name}' não encontrada.";
+                var error = await response.Content.ReadAsStringAsync();
+                var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(error, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                TempData["Errors"]   = System.Text.Json.JsonSerializer.Serialize(resultMessage?.Errors ?? new List<string> { "Erro desconhecido" });
                 return RedirectToAction("Index", "Home");
             }
 
@@ -64,7 +70,7 @@ namespace Web.Controllers
             List<PageFileResponse> files = new List<PageFileResponse>();
             if (ViewBag.Page != null)
             {
-                var fileResponse = await client.GetAsync($"/pagefile/page/{ViewBag.Page.Id}");
+                var fileResponse = await client.GetAsync($"pagefile/page/{ViewBag.Page.Id}");
                 if (fileResponse.IsSuccessStatusCode)
                 {
                     var fileJson = await fileResponse.Content.ReadAsStringAsync();
@@ -76,7 +82,9 @@ namespace Web.Controllers
                 }
                 else
                 {
-                    TempData["Message"] = "Não foi possível listar os arquivos da página.";
+                    TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
+                        new List<string> { "Erro ao listar página" }
+                    );
                 }
             }
 
@@ -97,7 +105,7 @@ namespace Web.Controllers
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("/page", content);
+            var response = await client.PostAsync("page", content);
 
             if (response.IsSuccessStatusCode)
             {
@@ -109,8 +117,9 @@ namespace Web.Controllers
             {
                 PropertyNameCaseInsensitive = true
             });
-
-            TempData["Message"] = resultMessage?.message ?? "Erro desconhecido ao criar página.";
+            TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
+    resultMessage?.Errors ?? new List<string> { "Erro desconhecido" }
+);
             return RedirectToAction("Index", "Home");
         }
 
@@ -128,12 +137,19 @@ namespace Web.Controllers
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("/page/access", content);
+            var response = await client.PostAsync("page/access", content);
 
             if (!response.IsSuccessStatusCode)
             {
-                TempData["Message"] = "Código de acesso inválido.";
-                return RedirectToAction("Index", "Home");
+                var error = await response.Content.ReadAsStringAsync();
+                var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(error, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
+                    resultMessage?.Errors ?? new List<string> { "Erro desconhecido" }
+                ); return RedirectToAction("Index", "Home");
             }
 
             var tokenJson = await response.Content.ReadAsStringAsync();
@@ -143,7 +159,8 @@ namespace Web.Controllers
                 PropertyNameCaseInsensitive = true
             });
 
-            var token = tokenResult?.Token;
+             var token = tokenResult?.Data?.Token;
+
 
             if (!string.IsNullOrEmpty(token))
             {
@@ -161,9 +178,5 @@ namespace Web.Controllers
         }
     }
 
-    // DTO para desserializar o token retornado da API
-    public class TokenResponseDTO
-    {
-        public string Token { get; set; }
-    }
+ 
 }

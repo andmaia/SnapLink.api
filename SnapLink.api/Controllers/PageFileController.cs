@@ -7,10 +7,13 @@ using SnapLink.api.Crosscutting;
 using SnapLink.api.Infra;
 using SnapLink.Api.Controllers;
 using SnapLink.api.Crosscutting.Events;
+using Asp.Versioning;
 
 
-[Route("api/v{version:apiVersion}/[controller]")]
-[ApiVersion("1.0")]
+/*[Route("api/v{version:apiVersion}/[controller]")]*/
+/*[ApiVersion("1.0")]*/
+[Route("api/v1/[controller]")]
+
 public class PageFileController : MainController
 {
     private readonly IPageFileService _service;
@@ -84,7 +87,6 @@ public class PageFileController : MainController
         if (data == null || data.Length == 0)
             return CustomResponse(success: false);
 
-        // Retorna diretamente o arquivo
         return File(data, fileMeta.ContentType ?? "application/octet-stream", fileMeta.FileName ?? "file");
     }
 

@@ -3,22 +3,20 @@ using SnapLink.api.Crosscutting.DTO.Request;
 
 namespace SnapLink.api.Application.Validator
 {
-    public class ValideAcessCodeRequestValidator :AbstractValidator<ValideAcessCodeRequest>
+    public class ValideAcessCodeRequestValidator : AbstractValidator<ValideAcessCodeRequest>
     {
         public ValideAcessCodeRequestValidator()
         {
             RuleFor(x => x.Name)
-                .NotEmpty().WithMessage("Page name is required")
-                .MaximumLength(30).WithMessage("Page name cannot be longer than 100 characters");
+                .NotEmpty().WithMessage("O nome da página é obrigatório.")
+                .MaximumLength(30).WithMessage("O nome da página não pode ter mais que 30 caracteres.");
 
-           
-                RuleFor(x => x.AccessCode)
-                    .NotEmpty().WithMessage("Password is required for private pages")
-                    .MinimumLength(8).WithMessage("Password must be at least 8 characters long")
-                    .Matches("[A-Z]").WithMessage("Password must contain at least one uppercase letter")
-                    .Matches("[a-z]").WithMessage("Password must contain at least one lowercase letter")
-                    .Matches(@"\d").WithMessage("Password must contain at least one number");
-     
+            RuleFor(x => x.AccessCode)
+                .NotEmpty().WithMessage("A senha é obrigatória para páginas privadas.")
+                .MinimumLength(8).WithMessage("A senha deve ter pelo menos 8 caracteres.")
+                .Matches("[A-Z]").WithMessage("A senha deve conter pelo menos uma letra maiúscula.")
+                .Matches("[a-z]").WithMessage("A senha deve conter pelo menos uma letra minúscula.")
+                .Matches(@"\d").WithMessage("A senha deve conter pelo menos um número.");
         }
     }
 }
