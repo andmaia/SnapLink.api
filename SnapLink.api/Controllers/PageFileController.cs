@@ -5,10 +5,13 @@ using SnapLink.api.Application.Services;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting;
 using SnapLink.api.Infra;
+using SnapLink.Api.Controllers;
+using SnapLink.api.Crosscutting.Events;
 
-[ApiController]
-[Route("[controller]")]
-public class PageFileController : ControllerBase
+
+[Route("api/v{version:apiVersion}/[controller]")]
+[ApiVersion("1.0")]
+public class PageFileController : MainController
 {
     private readonly IPageFileService _service;
     private readonly IPageRepository _pageRepository;
@@ -31,20 +34,19 @@ public class PageFileController : ControllerBase
     public async Task<IActionResult> Create([FromForm] CreatePageFileRequest request)
     {
         if (request.IsPagePrivate && !TokenValidator.ValidateTokenToPage(HttpContext, request.PageId, _jwtKey))
-            return Unauthorized("Token does not grant access to this page.");
+            return CustomResponseUnathorized();
 
         var validationResult = await _validator.ValidateAsync(request);
         if (!validationResult.IsValid)
         {
-            var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-            return BadRequest(Result<string>.Fail(string.Join(" | ", errors)));
+            return CustomResponse(validationResult);
         }
 
         var result = await _service.CreatePageFile(request);
-        if (!result.Success)
-            return BadRequest(result);
+        if (!result)
+            return CustomResponse(success:false);
 
-        return Ok(Result<string>.Ok("File uploaded successfully."));
+        return CustomResponse(success:true);
     }
 
     [HttpGet("page/{pageId}")]
@@ -52,38 +54,37 @@ public class PageFileController : ControllerBase
     {
         var page = await _pageRepository.GetByIdAsync(pageId);
         if (page == null)
-            return NotFound("Page not found");
+            return CustomResponse(success:false);
 
         if (page.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, pageId, _jwtKey))
-            return Unauthorized("Token does not grant access to this page.");
+            return CustomResponseUnathorized();
 
         var result = await _service.GetAllByPageId(pageId);
-        if (!result.Success)
-            return NotFound(result);
+        if (result==null)
+            return CustomResponse(success:false);
 
-        return Ok(result);
+        return CustomResponse(result,success:true);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     { 
         var result = await _service.DeletePageFile(id); 
-        if (!result.Success) return BadRequest(result); 
-        return Ok(result); 
+        if (!result) return  CustomResponse(success:false); 
+        return CustomResponse(success:true); 
     }
-
     [HttpGet("download/{id}")]
-    public async Task<IActionResult> Download(string id) 
-    { 
-        var fileMetaResult = await _service.GetById(id); 
-        if (!fileMetaResult.Success)
-            return NotFound(fileMetaResult); 
-        var fileMeta = fileMetaResult.Data; 
-        var dataResult = await _service.DowloadPageFile(id); 
-        if (!dataResult.Success)
-            return NotFound(dataResult); 
-        var data = dataResult.Data;
-        
+    public async Task<IActionResult> Download(string id)
+    {
+        var fileMeta = await _service.GetById(id);
+        if (fileMeta == null)
+            return CustomResponse(success: false);
+
+        var data = await _service.DowloadPageFile(id);
+        if (data == null || data.Length == 0)
+            return CustomResponse(success: false);
+
+        // Retorna diretamente o arquivo
         return File(data, fileMeta.ContentType ?? "application/octet-stream", fileMeta.FileName ?? "file");
     }
 
