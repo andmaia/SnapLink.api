@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using SnapLink.api.Domain;
 using SnapLink.api.Crosscutting.Enum;
 using Microsoft.EntityFrameworkCore;
+using SnapLink.Api.Crosscutting.Events;
 
 namespace SnapLink.api.Application.Services
 {
@@ -28,18 +29,27 @@ namespace SnapLink.api.Application.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<Result<bool>> CreatePageFile(CreatePageFileRequest request)
+        public async Task<bool> CreatePageFile(CreatePageFileRequest request)
         {
             var page = await _pageRepository.GetByNameAsync(request.PageName);
             if (page == null)
-                return Result<bool>.Fail("Page not found.");
+            {
+                MessageService.AddMessage("Página não encontrada");
+                return false;
+            }
 
             if (request.Data == null || request.Data.Length == 0)
-                return Result<bool>.Fail("File is empty.");
+            {
+                MessageService.AddMessage("Arquivo está vazio");
+                return false;
+            }
 
             var maxFileSize = _configuration.GetValue<long>("FileSettings:MaxFileSizeInBytes");
             if (request.Data.Length > maxFileSize)
-                return Result<bool>.Fail($"File size exceeds the {maxFileSize / (1024 * 1024)}MB limit.");
+            {
+                MessageService.AddMessage($"O arquivo excede o limite de {maxFileSize / (1024 * 1024)}MB.");
+                return false;
+            }
 
             var pageFile = new PageFile(
                 request.Data.FileName,
@@ -54,56 +64,78 @@ namespace SnapLink.api.Application.Services
                 pageFile.AddFile(ms.ToArray());
             }
 
-            _repository.AddAsync(pageFile);
+             _repository.AddAsync(pageFile);
             var committed = await _unitOfWork.CommitAsync();
-            if (!committed)
-                return Result<bool>.Fail("Failed to save the file.");
 
-            return Result<bool>.Ok(true);
+            if (!committed)
+            {
+                MessageService.AddMessage("Falha ao salvar arquivo");
+                return false;
+            }
+
+            return true;
         }
 
-        public async Task<Result<bool>> DeletePageFile(string id)
+        public async Task<bool> DeletePageFile(string id)
         {
             var pageFile = await _repository.GetByIdAsync(id);
             if (pageFile == null)
-                return Result<bool>.Fail("File not found.");
+            {
+                MessageService.AddMessage("Arquivo não encontrado");
+                return false;
+            }
 
             if (pageFile.VerifyIfExpire())
-                return Result<bool>.Fail("Cannot delete an expired file.");
+            {
+                MessageService.AddMessage("Não é possível excluir um arquivo expirado");
+                return false;
+            }
 
             pageFile.Disable();
             _repository.Update(pageFile);
             var committed = await _unitOfWork.CommitAsync();
 
             if (!committed)
-                return Result<bool>.Fail("Failed to delete file.");
+            {
+                MessageService.AddMessage("Falha ao excluir arquivo");
+                return false;
+            }
 
-            return Result<bool>.Ok(true);
+            return true;
         }
 
-        public async Task<Result<byte[]>> DowloadPageFile(string id)
+        public async Task<byte[]> DowloadPageFile(string id)
         {
             var pageFile = await _repository.GetByIdAsync(id);
             if (pageFile == null || !pageFile.IsActive)
-                return Result<byte[]>.Fail("File not found or inactive.");
+            {
+                MessageService.AddMessage("Arquivo não encontrado ou inativo");
+                return Array.Empty<byte>();
+            }
 
             if (pageFile.VerifyIfExpire())
-                return Result<byte[]>.Fail("File has expired.");
+            {
+                MessageService.AddMessage("Arquivo expirado");
+                return Array.Empty<byte>();
+            }
 
-            return Result<byte[]>.Ok(pageFile.Data);
+            return pageFile.Data;
         }
 
-        public async Task<Result<IEnumerable<PageFileResponse>>> GetAllByPageId(string PageId)
+        public async Task<IEnumerable<PageFileResponse>> GetAllByPageId(string PageId)
         {
             var files = await _repository.GetByPageIdAsync(PageId);
-            return Result<IEnumerable<PageFileResponse>>.Ok(files);
+            return files;
         }
 
-        public async Task<Result<PageFileResponse>> GetById(string id)
+        public async Task<PageFileResponse?> GetById(string id)
         {
             var pageFile = await _repository.GetByIdAsync(id);
             if (pageFile == null || !pageFile.IsActive)
-                return Result<PageFileResponse>.Fail("File not found or inactive.");
+            {
+                MessageService.AddMessage("Arquivo não encontrado ou inativo");
+                return null;
+            }
 
             var response = new PageFileResponse
             {
@@ -116,11 +148,10 @@ namespace SnapLink.api.Application.Services
                 TimeToExpire = (int)pageFile.TimeToExpire,
                 ExpiresAt = pageFile.ExpiresAt,
                 IsActive = pageFile.IsActive,
-                DownloadUrl = $"{pageFile.PageId}/{pageFile.Id}" 
+                DownloadUrl = $"{pageFile.PageId}/{pageFile.Id}"
             };
 
-            return Result<PageFileResponse>.Ok(response);
+            return response;
         }
-
     }
 }

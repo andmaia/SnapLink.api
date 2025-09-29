@@ -7,12 +7,11 @@ namespace SnapLink.api.Application.Services
     public interface IPageFileService
     {
 
-        Task<Result<bool>> CreatePageFile(CreatePageFileRequest request);
-        Task<Result<bool>> DeletePageFile(string Id);
-        Task<Result<IEnumerable<PageFileResponse>>> GetAllByPageId(string PageId);
-        Task<Result<Byte[]>> DowloadPageFile(string url);
-        Task<Result<PageFileResponse>> GetById(string Id);
-
+        Task<bool> CreatePageFile(CreatePageFileRequest request);
+        Task<bool> DeletePageFile(string Id);
+        Task<IEnumerable<PageFileResponse>> GetAllByPageId(string PageId);
+        Task<Byte[]> DowloadPageFile(string url);
+        Task<PageFileResponse> GetById(string Id);
 
 
     }
