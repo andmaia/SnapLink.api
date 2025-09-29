@@ -28,7 +28,7 @@ public partial class TestProgram
         }
 
         // Serviços da aplicação
-   //     builder.Services.AddScoped<IPageService, PageService>();
+        builder.Services.AddScoped<IPageService, PageService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IPageRepository, PageRepository>();
         builder.Services.AddScoped<IUnitOfWork, UnitOFWork>();

@@ -3,14 +3,12 @@ using SnapLink.api.Application.Services;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting;
 using FluentValidation;
-using SnapLink.Api.Controllers;
-using SnapLink.Api.Crosscutting.Events;
 
 namespace SnapLink.api.Controllers
 {
-    [Route("api/v{version:apiVersion}/[controller]")]
-    [ApiVersion("1.0")]
-    public class PageController : MainController
+    [ApiController]
+    [Route("[controller]")]
+    public class PageController : ControllerBase
     {
         private readonly IPageService _service;
         private readonly IValidator<CreatePageRequest> _validator;
@@ -34,13 +32,16 @@ namespace SnapLink.api.Controllers
             var validationResult = await _validator.ValidateAsync(request);
 
             if (!validationResult.IsValid)
-                return CustomResponse(validationResult);
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+                return BadRequest(Result<string>.Fail(string.Join(" | ", errors)));
+            }
 
             var result = await _service.CreatePageWithUniqueName(request);
-            if (!result)
-                return CustomResponse(result);
+            if (!result.Success)
+                return BadRequest(result);
 
-            return CustomResponse(success:true);
+            return Ok(Result<string>.Ok("Página criada com sucesso."));
         }
 
         [HttpGet("by-name/{name}")]
@@ -48,34 +49,30 @@ namespace SnapLink.api.Controllers
         {
             var result = await _service.GetPageByName(name);
 
-            if (result ==null)
-                return CustomResponse(success:false);
+            if (!result.Success)
+                return NotFound(result);
 
-            return CustomResponse(result,true);
+            return Ok(result);
         }
 
         [HttpPost("access")]
         public async Task<IActionResult> AccessPage([FromBody] ValideAcessCodeRequest request)
         {
             var page = await _service.GetPageByName(request.Name);
-            if (page == null)
-                return CustomResponse(success:false);
+            if (page.Data == null)
+                return NotFound(page.Message);
 
-            if (!page.IsPrivate)
-            {
-                MessageService.AddMessage("Página não é privada");
-                return CustomResponse(success: false);
-
-            }
+            if (!page.Data.IsPrivate)
+                return BadRequest(page.Message);
 
             var isValid = await _service.ValideAcessCode(request);
-            if (!isValid)
-                return CustomResponseUnathorized();
+            if (!isValid.Success)
+                return Unauthorized("Invalid access code.");
 
-            var token = _tokenService.GeneratePageToken(page.Id);
+            var token = _tokenService.GeneratePageToken(page.Data.Id);
 
             Response.Cookies.Append(
-                $"PageToken_{page.Name}",
+                $"PageToken_{page.Data.Name}",
                 token,
                 new CookieOptions
                 {
@@ -86,20 +83,20 @@ namespace SnapLink.api.Controllers
                 }
             );
 
-            return CustomResponse(new { token },success:true);
+            return Ok(new { token });
         }
 
         [HttpGet("private/{name}")]
         public async Task<IActionResult> GetPage(string name)
         {
             var page = await _service.GetPageByName(name);
-            if (page == null)
-                return CustomResponse(success:false);
+            if (page.Data == null)
+                return NotFound(page.Message);
 
-            if (page.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, page.Id, _jwtKey))
-                return CustomResponseUnathorized();
+            if (page.Data.IsPrivate && !TokenValidator.ValidateTokenToPage(HttpContext, page.Data.Id, _jwtKey))
+                return Unauthorized("Token does not grant access to this page.");
 
-            return CustomResponse(page,true);
+            return Ok(page);
         }
     }
 }

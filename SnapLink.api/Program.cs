@@ -6,10 +6,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using DotNetEnv;
-using SnapLink.api.Crosscutting.Middlewares;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc.Versioning;
+using DotNetEnv; 
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,7 +30,7 @@ builder.Services.AddScoped<IPageFileService, PageFileService>();
 builder.Services.AddScoped<IPageFileRepository, PageFileRepository>();
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOFWork>();
-builder.Services.AddSingleton<ErrorHandlerMiddleware>();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -106,27 +103,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddApiVersioning(options =>
-{
-    options.ReportApiVersions = true;
-
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
-
-    options.ApiVersionReader = ApiVersionReader.Combine(
-        new QueryStringApiVersionReader("api-version"),
-        new HeaderApiVersionReader("X-Version"),
-        new UrlSegmentApiVersionReader()
-    );
-});
-
-builder.Services.AddVersionedApiExplorer(options =>
-{
-    options.GroupNameFormat = "'v'VVV"; 
-    options.SubstituteApiVersionInUrl = true;
-});
-
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -139,6 +115,5 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ErrorHandlerMiddleware>();
 app.MapControllers();
 app.Run();

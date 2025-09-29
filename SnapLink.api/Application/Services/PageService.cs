@@ -1,28 +1,25 @@
-using SnapLink.api.Crosscutting;
+ï»¿using SnapLink.api.Crosscutting;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting.DTO.Response;
 using SnapLink.api.Infra;
-using SnapLink.Api.Crosscutting.Events;
 using SnapLink.Api.Domain;
 
 namespace SnapLink.api.Application.Services
-{
-    public class PageService : IPageService
+{   public class PageService : IPageService
     {
         private readonly IPageRepository _pageRepository;
-        private readonly IUnitOfWork _unitOfWork;
-        public PageService(IPageRepository pageRepository, IUnitOfWork unitOfWork)
+        private readonly IUnitOfWork _unitOfWork;   
+        public PageService(IPageRepository pageRepository,IUnitOfWork unitOfWork)
         {
             _pageRepository = pageRepository;
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<bool> CreatePageWithUniqueName(CreatePageRequest request)
+        public async Task<Result<bool>> CreatePageWithUniqueName(CreatePageRequest request)
         {
             if (await _pageRepository.ExistsByNameAsync(request.Name))
             {
-                MessageService.AddMessage("Página com essa nome já existe.");
-                return false;
+                return Result<bool>.Fail("Page with this name already exists.");
             }
 
             Page page = new Page
@@ -33,7 +30,7 @@ namespace SnapLink.api.Application.Services
                 Id = Guid.NewGuid().ToString()
             };
 
-            if (request.IsPrivate)
+            if(request.IsPrivate)
             {
                 page.IsPrivate = true;
                 page.AccessCode = request.AccessCode;
@@ -46,22 +43,20 @@ namespace SnapLink.api.Application.Services
             }
 
             _pageRepository.AddAsync(page);
-            var result = await _unitOfWork.CommitAsync();
+            var result =await _unitOfWork.CommitAsync();
             if (result)
             {
-                return true;
+                return Result<bool>.Ok(true);
             }
-            MessageService.AddMessage("Falha ao criar página.");
-            return false;
+            return Result<bool>.Fail("Failed to create page.");
         }
 
-        public async Task<PageResponse?> GetPageByName(string name)
+        public async Task<Result<PageResponse>> GetPageByName(string name)
         {
             var result = await _pageRepository.GetByNameAsync(name);
             if (result == null)
             {
-                MessageService.AddMessage("Página não encontrada.");
-                return null;
+                return Result<PageResponse>.Fail("Page not found.");
             }
             var pageResponse = new PageResponse
             {
@@ -71,36 +66,31 @@ namespace SnapLink.api.Application.Services
                 CreatedAt = result.CreatedAt,
                 IsActive = result.IsActive
             };
-            return pageResponse;
+            return Result<PageResponse>.Ok(pageResponse);
         }
 
-        public Task<bool> UpdatePage(CreatePageRequest request)
+        public Task<Result<bool>> UpdatePage(CreatePageRequest request)
         {
             throw new NotImplementedException();
         }
 
-        public Task<bool> UpdatePrivacityPage(CreatePageRequest request)
+        public Task<Result<bool>> UpdatePrivacityPage(CreatePageRequest request)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<bool> ValideAcessCode(ValideAcessCodeRequest request)
+        public async Task<Result<bool>> ValideAcessCode(ValideAcessCodeRequest request)
         {
-
+           
             var page = await _pageRepository.GetByNameAsync(request.Name);
             if (page == null)
-            {
-                MessageService.AddMessage("Página não encontrada.");
-                return false;
-            }
-               
+                return Result<bool>.Fail("Page not found.");
+
             var isValid = page.VerifyPassword(request.AccessCode);
             if (!isValid)
-            {
-                MessageService.AddMessage("Código de acesso inválido.");
-                return false;
-            }
-            return true;
+                return Result<bool>.Fail("Invalid access code.");
+
+            return Result<bool>.Ok(true);
         }
 
     }

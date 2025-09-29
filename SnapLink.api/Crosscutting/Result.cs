@@ -5,20 +5,12 @@
         public T Data { get;  set; }
         public bool Success { get;  set; }
         public string Message { get; set; }
-        public  List<string> Errors { get; set; }
 
         public Result(T data, bool success, string message)
         {
             Data = data;
             Success = success;
             Message = message;
-        }
-
-        public Result(T data, bool success, List<string> erros)
-        {
-            Data = data;
-            Success = success;
-            Errors = erros;
         }
 
         public static Result<T> Ok(T data, string message = null)
