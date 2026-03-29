@@ -49,28 +49,49 @@ builder.Services.AddHttpClient<ISnapLinkApiClient, SnapLinkApiClient>(ConfigureB
         pipeline.AddRetry(new HttpRetryStrategyOptions
         {
             MaxRetryAttempts = 3,
-            Delay = TimeSpan.FromSeconds(1),
             BackoffType = DelayBackoffType.Exponential,
             UseJitter = true,
+
             ShouldHandle = args => args.Outcome switch
             {
                 { Exception: HttpRequestException } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
                 _ => PredicateResult.False()
+            },
+
+            DelayGenerator = args =>
+            {
+                var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
+
+                if (retryAfter != null)
+                {
+                    if (retryAfter.Delta != null)
+                        return new ValueTask<TimeSpan?>(retryAfter.Delta);
+
+                    if (retryAfter.Date != null)
+                        return new ValueTask<TimeSpan?>(
+                            retryAfter.Date.Value - DateTimeOffset.UtcNow
+                        );
+                }
+
+                return new ValueTask<TimeSpan?>(
+                    TimeSpan.FromSeconds(Math.Pow(2, args.AttemptNumber + 1))
+                );
             }
         });
 
         pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
         {
-            FailureRatio = 0.5,
-            MinimumThroughput = 10,
+            FailureRatio = 0.1,
+            MinimumThroughput = 2,
             SamplingDuration = TimeSpan.FromSeconds(30),
             BreakDuration = TimeSpan.FromSeconds(30),
             ShouldHandle = args => args.Outcome switch
             {
                 { Exception: HttpRequestException } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+                { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
                 _ => PredicateResult.False()
             },
             OnOpened = args =>
