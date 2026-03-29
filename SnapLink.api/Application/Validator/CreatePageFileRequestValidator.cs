@@ -1,22 +1,26 @@
 ﻿using FluentValidation;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting.Enum;
+using Microsoft.Extensions.Configuration;
 
 namespace SnapLink.api.Application.Validator
 {
     public class CreatePageFileRequestValidator : AbstractValidator<CreatePageFileRequest>
     {
-        private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
+        private readonly long _maxFileSizeBytes;
 
-        public CreatePageFileRequestValidator()
+        public CreatePageFileRequestValidator(IConfiguration configuration)
         {
+            _maxFileSizeBytes = configuration.GetValue<long>("FileSettings:MaxFileSizeInBytes");
+            var maxFileSizeMB = _maxFileSizeBytes / (1024 * 1024);
+
             RuleFor(x => x.FileName)
                 .MaximumLength(55)
                 .WithMessage("O nome do arquivo não pode ultrapassar 55 caracteres.");
 
             RuleFor(x => x.Data)
                 .NotNull().WithMessage("O arquivo é obrigatório.")
-                .Must(ValidarTamanhoArquivo).WithMessage("O arquivo não pode ultrapassar 50 MB.");
+                .Must(ValidarTamanhoArquivo).WithMessage($"O arquivo não pode ultrapassar {maxFileSizeMB} MB.");
 
             RuleFor(x => x.ContentType)
                 .NotEmpty().WithMessage("O tipo de conteúdo (ContentType) é obrigatório.");
@@ -33,7 +37,7 @@ namespace SnapLink.api.Application.Validator
         private bool ValidarTamanhoArquivo(IFormFile file)
         {
             if (file == null) return false;
-            return file.Length <= MaxFileSizeBytes;
+            return file.Length <= _maxFileSizeBytes;
         }
     }
 }

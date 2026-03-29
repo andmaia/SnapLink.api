@@ -21,6 +21,8 @@ var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
     ?? throw new Exception("JWT_KEY não definida!");
 var apiBaseUrl = Environment.GetEnvironmentVariable("API_BASE_URL")
     ?? throw new Exception("API_BASE_URL não definida!");
+var webUrl = Environment.GetEnvironmentVariable("WEB_URL")
+    ?? throw new Exception("WEB_URL não definida!");
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -106,6 +108,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy
+            .WithOrigins(webUrl) 
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); 
+    });
+});
 /*builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1);
@@ -132,6 +145,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseCors("CorsPolicy"); 
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ErrorHandlerMiddleware>();

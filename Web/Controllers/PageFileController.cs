@@ -1,80 +1,66 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using SnapLink.api.Crosscutting.DTO.Request;
-using System.Text;
-using System.Text.Json;
-using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Http;
+﻿// PageFileController.cs
+using Microsoft.AspNetCore.Mvc;
 using SnapLink.api.Crosscutting;
+using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting.DTO.Response;
+using System.Text.Json;
 using Web.Models;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using Web.Services;
 
 namespace Web.Controllers
 {
     public class PageFileController : Controller
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public PageFileController(IHttpClientFactory httpClientFactory, IHttpContextAccessor httpContextAccessor)
+        private readonly ISnapLinkApiClient _apiClient;
+        private readonly ISnapLinkUploadClient _uploadClient;
+
+        public PageFileController(ISnapLinkApiClient apiClient, ISnapLinkUploadClient uploadClient)
         {
-            _httpClientFactory = httpClientFactory;
-            _httpContextAccessor = httpContextAccessor;
+            _apiClient = apiClient;
+            _uploadClient = uploadClient;
         }
 
-        private HttpClient GetHttpClientWithToken()
-        {
-            var client = _httpClientFactory.CreateClient("SnapLinkApi");
-            var token = _httpContextAccessor.HttpContext?.Request.Cookies["PageToken"];
-
-           
-            if (!string.IsNullOrEmpty(token))
-            {
-                client.DefaultRequestHeaders.Add("Cookie", $"PageToken={token}");
-            }
-            return client;
-        }
+        private string? GetToken() =>
+            HttpContext.Request.Cookies["PageToken"];
 
         [HttpPost]
         public async Task<IActionResult> CreateFile(CreatePageFileRequest request)
         {
-            if (request == null )
+            if (request == null)
             {
                 TempData["PageFileMessage"] = "O arquivo enviado está vazio ou excede o tamanho permitido.";
-                return Redirect($"/");
+                return Redirect("/");
             }
 
-            var client = GetHttpClientWithToken();
             request.ContentType = request.Data.ContentType;
+
             using var form = new MultipartFormDataContent();
             form.Add(new StringContent(request.PageId.ToString()), "PageId");
             form.Add(new StringContent(request.ContentType.ToString()), "ContentType");
             form.Add(new StringContent(request.FileName), "FileName");
             form.Add(new StringContent(request.TimeToExpire.ToString()), "TimeToExpire");
-            form.Add(new StringContent(request.PageName), "PageName"); 
-            form.Add(new StringContent(request.IsPagePrivate.ToString()), "IsPagePrivate"); 
-
+            form.Add(new StringContent(request.PageName), "PageName");
+            form.Add(new StringContent(request.IsPagePrivate.ToString()), "IsPagePrivate");
 
             if (request.Data != null)
                 form.Add(new StreamContent(request.Data.OpenReadStream()), "Data", request.Data.FileName);
 
-            var response = await client.PostAsync("pageFile/upload", form);
+            var response = await _uploadClient.PostMultipartAsync("pageFile/upload", form, GetToken());
 
             if (response.IsSuccessStatusCode)
-            {
                 return Redirect($"/page/{request.PageName}");
-            }
 
             var error = await response.Content.ReadAsStringAsync();
             var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(error, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
-          
-            ViewBag.Errors = resultMessage?.Errors ?? new List<string> { "Erro desconhecido ao criar página" };
 
+            ViewBag.Errors = resultMessage?.Errors ?? new List<string> { "Erro desconhecido ao criar página" };
             return Redirect($"/page/{request.PageName}");
         }
+
         [HttpGet]
         public async Task<IActionResult> ListFiles(string pageId, string pageName)
         {
@@ -84,8 +70,7 @@ namespace Web.Controllers
                 return RedirectToAction("Index");
             }
 
-            var client = GetHttpClientWithToken();
-            var response = await client.GetAsync($"pagefile/page/{pageId}");
+            var response = await _apiClient.GetAsync($"pagefile/page/{pageId}", GetToken());
 
             if (!response.IsSuccessStatusCode)
             {
@@ -94,20 +79,17 @@ namespace Web.Controllers
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
             var result = JsonSerializer.Deserialize<Result<List<PageResponse>>>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-
-            if (!result.Success || result.Data == null)
+            if (result == null || !result.Success || result.Data == null)
             {
-                TempData["PageFileMessage"] = result.Message ?? "Nenhum arquivo encontrado.";
+                TempData["PageFileMessage"] = result?.Message ?? "Nenhum arquivo encontrado.";
                 return RedirectToAction("Index");
             }
 
             return View(result.Data);
         }
-
 
         [HttpGet]
         public async Task<IActionResult> DownloadFile(string id, string pageName)
@@ -118,8 +100,7 @@ namespace Web.Controllers
                 return Redirect($"/page/{pageName}");
             }
 
-            var client = GetHttpClientWithToken();
-            var response = await client.GetAsync($"pagefile/download/{id}");
+            var response = await _apiClient.GetAsync($"pagefile/download/{id}", GetToken());
 
             if (!response.IsSuccessStatusCode)
             {
@@ -128,14 +109,11 @@ namespace Web.Controllers
             }
 
             var bytes = await response.Content.ReadAsByteArrayAsync();
-
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
-
             var fileName = response.Content.Headers.ContentDisposition?.FileName?.Trim('"') ?? $"file-{id}";
 
             return File(bytes, contentType, fileName);
         }
-
 
         [HttpPost]
         public async Task<IActionResult> DeleteFile(string id, string pageName)
@@ -146,15 +124,13 @@ namespace Web.Controllers
                 return Redirect($"/page/{pageName}");
             }
 
-            var client = GetHttpClientWithToken();
-            var response = await client.DeleteAsync($"pagefile/{id}");
+            var response = await _apiClient.DeleteAsync($"pagefile/{id}", GetToken());
 
             if (response.IsSuccessStatusCode)
                 return Redirect($"/page/{pageName}");
 
             TempData["PageFileMessage"] = "Erro ao remover o arquivo.";
-            return Redirect($"/page/{pageName}"); 
+            return Redirect($"/page/{pageName}");
         }
-
     }
 }

@@ -1,54 +1,44 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SnapLink.api.Controllers;
 using SnapLink.api.Crosscutting;
 using SnapLink.api.Crosscutting.DTO.Request;
 using SnapLink.api.Crosscutting.DTO.Response;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Web.Models;
+using Web.Services;
 
 namespace Web.Controllers
 {
-    [Route("page")] 
+    [Route("page")]
     public class PageController : Controller
     {
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ISnapLinkApiClient _apiClient;
 
-        public PageController(IHttpClientFactory httpClientFactory)
+        public PageController(ISnapLinkApiClient apiClient)
         {
-            _httpClientFactory = httpClientFactory;
+            _apiClient = apiClient;
         }
 
         [HttpGet("")]
-        public IActionResult RedirectToRoot()
-        {
-            return Redirect("/");
-        }
+        public IActionResult RedirectToRoot() => Redirect("/");
 
         [HttpGet("{name}")]
-
         public async Task<IActionResult> Index(string name)
         {
             ViewBag.PageName = name;
             ViewBag.RequireAccessCode = false;
             ViewBag.Erros = new List<string>();
-            var client = _httpClientFactory.CreateClient("SnapLinkApi");
 
-            var token = Request.Cookies[$"PageToken"];
-            if (!string.IsNullOrEmpty(token))
-            {
-                client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
+            var token = Request.Cookies["PageToken"];
 
-            var response = await client.GetAsync($"page/private/{name}");
+            var response = await _apiClient.GetAsync($"page/private/{name}", token);
+
             if (!response.IsSuccessStatusCode)
             {
                 if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
                     ViewBag.RequireAccessCode = true;
-                    return View(); 
+                    return View();
                 }
 
                 var error = await response.Content.ReadAsStringAsync();
@@ -57,7 +47,7 @@ namespace Web.Controllers
                     PropertyNameCaseInsensitive = true
                 });
 
-                TempData["Errors"]   = System.Text.Json.JsonSerializer.Serialize(resultMessage?.Errors ?? new List<string> { "Erro desconhecido" });
+                TempData["Errors"] = JsonSerializer.Serialize(resultMessage?.Errors ?? new List<string> { "Erro desconhecido" });
                 return RedirectToAction("Index", "Home");
             }
 
@@ -67,10 +57,12 @@ namespace Web.Controllers
 
             ViewBag.Page = result?.Data;
 
-            List<PageFileResponse> files = new List<PageFileResponse>();
+            var files = new List<PageFileResponse>();
+
             if (ViewBag.Page != null)
             {
-                var fileResponse = await client.GetAsync($"pagefile/page/{ViewBag.Page.Id}");
+                var fileResponse = await _apiClient.GetAsync($"pagefile/page/{ViewBag.Page.Id}", token);
+
                 if (fileResponse.IsSuccessStatusCode)
                 {
                     var fileJson = await fileResponse.Content.ReadAsStringAsync();
@@ -82,62 +74,44 @@ namespace Web.Controllers
                 }
                 else
                 {
-                    TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
-                        new List<string> { "Erro ao listar página" }
-                    );
+                    TempData["Errors"] = JsonSerializer.Serialize(new List<string> { "Erro ao listar página" });
                 }
             }
 
             return View(files);
         }
 
-
-
-        public IActionResult Upload()
-        {
-            return View();
-        }
+        public IActionResult Upload() => View();
 
         [HttpPost("create")]
         public async Task<IActionResult> CreatePage(CreatePageRequest request)
         {
-            var client = _httpClientFactory.CreateClient("SnapLinkApi");
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("page", content);
+            var response = await _apiClient.PostAsync("page", content);
 
             if (response.IsSuccessStatusCode)
-            {
                 return Redirect($"/page/{request.Name}");
-            }
 
             var error = await response.Content.ReadAsStringAsync();
             var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(error, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
-            TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
-    resultMessage?.Errors ?? new List<string> { "Erro desconhecido" }
-);
+
+            TempData["Errors"] = JsonSerializer.Serialize(resultMessage?.Errors ?? new List<string> { "Erro desconhecido" });
             return RedirectToAction("Index", "Home");
         }
 
         [HttpPost("access-private")]
         public async Task<IActionResult> AccessPrivate(string name, string accessCode)
         {
-            var client = _httpClientFactory.CreateClient("SnapLinkApi");
-
-            var request = new
-            {
-                Name = name,
-                AccessCode = accessCode
-            };
-
-            var json = JsonSerializer.Serialize(request);
+            var payload = new { Name = name, AccessCode = accessCode };
+            var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await client.PostAsync("page/access", content);
+            var response = await _apiClient.PostAsync("page/access", content);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -147,36 +121,30 @@ namespace Web.Controllers
                     PropertyNameCaseInsensitive = true
                 });
 
-                TempData["Errors"] = System.Text.Json.JsonSerializer.Serialize(
-                    resultMessage?.Errors ?? new List<string> { "Erro desconhecido" }
-                ); return RedirectToAction("Index", "Home");
+                TempData["Errors"] = JsonSerializer.Serialize(resultMessage?.Errors ?? new List<string> { "Erro desconhecido" });
+                return RedirectToAction("Index", "Home");
             }
 
             var tokenJson = await response.Content.ReadAsStringAsync();
-
             var tokenResult = JsonSerializer.Deserialize<TokenResponseDTO>(tokenJson, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-             var token = tokenResult?.Data?.Token;
-
+            var token = tokenResult?.Data?.Token;
 
             if (!string.IsNullOrEmpty(token))
             {
-                var cookieOptions = new CookieOptions
+                Response.Cookies.Append("PageToken", token, new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
                     Expires = DateTime.UtcNow.AddMinutes(30),
                     SameSite = SameSiteMode.Strict
-                };
-                Response.Cookies.Append($"PageToken", token, cookieOptions);
+                });
             }
 
             return Redirect($"/page/{name}");
         }
     }
-
- 
 }
