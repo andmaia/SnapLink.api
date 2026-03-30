@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using DotNetEnv;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -10,71 +11,89 @@ using Polly.CircuitBreaker;
 using Polly.Timeout;
 using Web.Services;
 
-
 var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
-const long MaxFileSizeBytes = 209715200; // 200 MB
+const long MaxFileSizeBytes = 209715200;
 
-// Kestrel: permite requisições de até 200 MB
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = MaxFileSizeBytes;
 });
 
-// IIS (caso usado em produção)
 builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = MaxFileSizeBytes;
 });
 
-// Limite de formulários multipart no pipeline do ASP.NET
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = MaxFileSizeBytes;
 });
 
+// ✅ persiste chaves entre restarts do container
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/etc/snaplink-keys"))
+    .SetApplicationName("SnapLink");
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+
 var defaultJsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 builder.Services.AddSingleton(defaultJsonOptions);
-// Separar em dois pipelines: um para uploads, outro para chamadas normais
 
-// pipeline normal — adicionar circuit breaker
 builder.Services.AddHttpClient<ISnapLinkApiClient, SnapLinkApiClient>(ConfigureBase)
     .AddResilienceHandler("snaplink-pipeline", pipeline =>
     {
+        // 1. timeout por tentativa
         pipeline.AddTimeout(TimeSpan.FromSeconds(10));
 
-        pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        // 2. retry — tenta novamente se falhar
+        pipeline.AddRetry(new HttpRetryStrategyOptions
         {
-            FailureRatio = 0.8,          // ← era 0.1 (abria com qualquer falha)
-            MinimumThroughput = 5,       // ← era 2 (abria com 2 requests)
-            SamplingDuration = TimeSpan.FromSeconds(30),
-            BreakDuration = TimeSpan.FromSeconds(60), // ← era 30s (insuficiente pro cold start)
+            MaxRetryAttempts = 3,
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true,
             ShouldHandle = args => args.Outcome switch
             {
                 { Exception: HttpRequestException } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+                { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
+                _ => PredicateResult.False()
+            },
+            DelayGenerator = args =>
+            {
+                var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
+
+                if (retryAfter?.Delta != null)
+                    return new ValueTask<TimeSpan?>(retryAfter.Delta);
+
+                if (retryAfter?.Date != null)
+                    return new ValueTask<TimeSpan?>(retryAfter.Date.Value - DateTimeOffset.UtcNow);
+
+                // 8s → 16s → 32s — tempo suficiente pro cold start do Render
+                return new ValueTask<TimeSpan?>(
+                    TimeSpan.FromSeconds(Math.Pow(2, args.AttemptNumber + 3)));
+            }
+        });
+
+        // 3. circuit breaker — abre se muitas falhas reais (não 429)
+        pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        {
+            FailureRatio = 0.8,
+            MinimumThroughput = 5,
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            BreakDuration = TimeSpan.FromSeconds(60),
+            ShouldHandle = args => args.Outcome switch
+            {
+                { Exception: HttpRequestException } => PredicateResult.True(),
+                { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+                // ✅ 429 fora — é cold start do Render, não falha real
                 _ => PredicateResult.False()
             }
         });
 
-    pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-    {
-        FailureRatio = 0.8,          // ← era 0.1 (abria com qualquer falha)
-        MinimumThroughput = 5,       // ← era 2 (abria com 2 requests)
-        SamplingDuration = TimeSpan.FromSeconds(30),
-        BreakDuration = TimeSpan.FromSeconds(60), // ← era 30s (insuficiente pro cold start)
-        ShouldHandle = args => args.Outcome switch
-        {
-            { Exception: HttpRequestException } => PredicateResult.True(),
-            { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
-            // ✅ 429 removido daqui — no Render free é cold start, não sobrecarga real
-            _ => PredicateResult.False()
-        }
-    });
-
+        // 4. timeout global
         pipeline.AddTimeout(TimeSpan.FromSeconds(30));
     });
 
@@ -83,10 +102,10 @@ builder.Services.AddHttpClient<ISnapLinkUploadClient, SnapLinkApiClient>(client 
     ConfigureBase(client);
     client.Timeout = TimeSpan.FromMinutes(5);
 })
-    .AddResilienceHandler("snaplink-upload-pipeline", pipeline =>
-    {
-        pipeline.AddTimeout(TimeSpan.FromMinutes(5));
-    });
+.AddResilienceHandler("snaplink-upload-pipeline", pipeline =>
+{
+    pipeline.AddTimeout(TimeSpan.FromMinutes(5));
+});
 
 static void ConfigureBase(HttpClient client)
 {
@@ -98,9 +117,8 @@ static void ConfigureBase(HttpClient client)
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 }
 
-
-
 var app = builder.Build();
+
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
@@ -116,24 +134,25 @@ app.UseExceptionHandler(errorApp =>
             _ => "Erro inesperado."
         };
 
-        // passa a mensagem pro TempData via cookie (truque para redirect)
         context.Response.Cookies.Append("ErrorMessage", message, new CookieOptions
         {
-            MaxAge = TimeSpan.FromSeconds(30)
+            MaxAge = TimeSpan.FromSeconds(30),
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict
         });
 
         context.Response.Redirect("/error");
     });
 });
+
+if (app.Environment.IsDevelopment())
+    app.UseDeveloperExceptionPage();
+
 if (!app.Environment.IsDevelopment())
-{
-   
     app.UseHsts();
-}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
 
 app.MapControllerRoute(

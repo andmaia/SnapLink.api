@@ -41,6 +41,13 @@ namespace Web.Controllers
                     return View();
                 }
 
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    TempData["Errors"] = JsonSerializer.Serialize(
+                        new List<string> { "Serviço indisponível, tente novamente em instantes." });
+                    return RedirectToAction("Index", "Home");
+                }
+
                 var error = await response.Content.ReadAsStringAsync();
                 var resultMessage = JsonSerializer.Deserialize<ResultMessageDTO>(error, new JsonSerializerOptions
                 {
