@@ -45,10 +45,8 @@ builder.Services.AddSingleton(defaultJsonOptions);
 builder.Services.AddHttpClient<ISnapLinkApiClient, SnapLinkApiClient>(ConfigureBase)
     .AddResilienceHandler("snaplink-pipeline", pipeline =>
     {
-        // 1. timeout por tentativa
-        pipeline.AddTimeout(TimeSpan.FromSeconds(10));
+        pipeline.AddTimeout(TimeSpan.FromSeconds(35));
 
-        // 2. retry — tenta novamente se falhar
         pipeline.AddRetry(new HttpRetryStrategyOptions
         {
             MaxRetryAttempts = 3,
@@ -64,37 +62,32 @@ builder.Services.AddHttpClient<ISnapLinkApiClient, SnapLinkApiClient>(ConfigureB
             DelayGenerator = args =>
             {
                 var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
-
                 if (retryAfter?.Delta != null)
                     return new ValueTask<TimeSpan?>(retryAfter.Delta);
-
                 if (retryAfter?.Date != null)
                     return new ValueTask<TimeSpan?>(retryAfter.Date.Value - DateTimeOffset.UtcNow);
 
-                // 8s → 16s → 32s — tempo suficiente pro cold start do Render
                 return new ValueTask<TimeSpan?>(
-                    TimeSpan.FromSeconds(Math.Pow(2, args.AttemptNumber + 3)));
+                    TimeSpan.FromSeconds(Math.Pow(2, args.AttemptNumber + 2)));
             }
         });
 
-        // 3. circuit breaker — abre se muitas falhas reais (não 429)
         pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
         {
             FailureRatio = 0.8,
             MinimumThroughput = 5,
-            SamplingDuration = TimeSpan.FromSeconds(30),
+            SamplingDuration = TimeSpan.FromSeconds(60),
             BreakDuration = TimeSpan.FromSeconds(60),
             ShouldHandle = args => args.Outcome switch
             {
                 { Exception: HttpRequestException } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
-                // ✅ 429 fora — é cold start do Render, não falha real
                 _ => PredicateResult.False()
             }
         });
 
-        // 4. timeout global
-        pipeline.AddTimeout(TimeSpan.FromSeconds(30));
+       
+        pipeline.AddTimeout(TimeSpan.FromMinutes(3));
     });
 
 builder.Services.AddHttpClient<ISnapLinkUploadClient, SnapLinkApiClient>(client =>
