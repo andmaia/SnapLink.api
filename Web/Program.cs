@@ -46,59 +46,34 @@ builder.Services.AddHttpClient<ISnapLinkApiClient, SnapLinkApiClient>(ConfigureB
     {
         pipeline.AddTimeout(TimeSpan.FromSeconds(10));
 
-        pipeline.AddRetry(new HttpRetryStrategyOptions
-        {
-            MaxRetryAttempts = 3,
-            BackoffType = DelayBackoffType.Exponential,
-            UseJitter = true,
-
-            ShouldHandle = args => args.Outcome switch
-            {
-                { Exception: HttpRequestException } => PredicateResult.True(),
-                { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
-                { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
-                _ => PredicateResult.False()
-            },
-
-            DelayGenerator = args =>
-            {
-                var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
-
-                if (retryAfter != null)
-                {
-                    if (retryAfter.Delta != null)
-                        return new ValueTask<TimeSpan?>(retryAfter.Delta);
-
-                    if (retryAfter.Date != null)
-                        return new ValueTask<TimeSpan?>(
-                            retryAfter.Date.Value - DateTimeOffset.UtcNow
-                        );
-                }
-
-                return new ValueTask<TimeSpan?>(
-                    TimeSpan.FromSeconds(Math.Pow(2, args.AttemptNumber + 1))
-                );
-            }
-        });
-
         pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
         {
-            FailureRatio = 0.1,
-            MinimumThroughput = 2,
+            FailureRatio = 0.8,          // ← era 0.1 (abria com qualquer falha)
+            MinimumThroughput = 5,       // ← era 2 (abria com 2 requests)
             SamplingDuration = TimeSpan.FromSeconds(30),
-            BreakDuration = TimeSpan.FromSeconds(30),
+            BreakDuration = TimeSpan.FromSeconds(60), // ← era 30s (insuficiente pro cold start)
             ShouldHandle = args => args.Outcome switch
             {
                 { Exception: HttpRequestException } => PredicateResult.True(),
                 { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
-                { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
                 _ => PredicateResult.False()
-            },
-            OnOpened = args =>
-            {
-                return ValueTask.CompletedTask;
             }
         });
+
+    pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+    {
+        FailureRatio = 0.8,          // ← era 0.1 (abria com qualquer falha)
+        MinimumThroughput = 5,       // ← era 2 (abria com 2 requests)
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        BreakDuration = TimeSpan.FromSeconds(60), // ← era 30s (insuficiente pro cold start)
+        ShouldHandle = args => args.Outcome switch
+        {
+            { Exception: HttpRequestException } => PredicateResult.True(),
+            { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+            // ✅ 429 removido daqui — no Render free é cold start, não sobrecarga real
+            _ => PredicateResult.False()
+        }
+    });
 
         pipeline.AddTimeout(TimeSpan.FromSeconds(30));
     });
